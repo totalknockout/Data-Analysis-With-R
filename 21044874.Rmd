@@ -1,0 +1,696 @@
+---
+title: 'Exam Template: Statistical Inference'
+author: '21044874'
+date: 'Jan 2022: Sep21 run'
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+# do not change these options
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE,comment=NA) # do not edit this line.
+```
+
+# Instructions to students
+
+You should only use the file Exam_template.Rmd provided on blackboard and you should load this file from your scripts folder / directory.
+
+Save this template as your studentID.Rmd; you will upload this file as your submission. Change the information on line 3 of this file – changing the author information to your **student ID**. Do not change the authorship to your name.
+
+Ensure that you save your data into your data folder (as discussed in class). You may use the files mypackages.R and helperFunctions.R from blackboard. If you use these files, do not alter them. If you wish to create additional files for custom functions that you have prepared in advance, make sure that you upload these in addition to your .Rmd file and your compiled output file.
+
+Your should knit this file to a document **Word** format.
+
+Any changes that you make to the data (e.g. variable name changes) should be made entirely within R.
+
+The subsubsections labelled **Answer:** indicate where you should put in your written Answers. The template also provides blank code chunks for you to complete your Answers; you may choose to add additional chunks if required.
+
+```{r libraries, include=FALSE}
+# load required libraries / additional files
+
+library(kableExtra) # for nice tables
+library(readr)
+library(readxl) # for reading in an excel file
+
+library(dplyr)
+
+library(lubridate) # for handling date / time variables
+library(ggplot2)
+
+library(MASS)
+
+# options for descriptive statistics
+library(summarytools) # 
+library(psych)
+
+library(patchwork) # for plot layout options
+
+
+library(corrplot) # correlation plots
+library(performance) # regression model performance and comparison
+# note that the compare_performance function also requires the see package installed.
+
+
+library(glmnet) # for LASSO /  Ridge regression.
+
+```
+
+```{r data}
+# load dataset
+# using read.csv we load data
+Jan_data <- read.csv("../data/Jan_2022_Exam_Data.csv")
+head(Jan_data)
+str(Jan_data)
+
+```
+
+# Data description
+
+
+This dataset is part of a larger dataset that has been collected to help to estimate the price of used cars.
+
+It contains the following variables:
+
+- brand (manufacturer)
+- model (of car)
+- year (of registration of the car)
+- price (in GB pounds)
+- transmission (type of gearbox)
+- mileage (total distance covered by the car)
+- fuelType (type of fuel used by the car)
+- tax (annual cost of vehicle tax)
+- mpg (miles per gallon - a measure of fuel efficiency)
+- engineSize (size of the engine in litres)
+
+
+
+# Question 1: Data Preparation (11 marks)
+
+You are interested in modelling the price of vehicles that have all of the following properties:
+
+- mileage less than 60000
+- Manual transmission
+- Petrol engine (fuelType)
+- Costing less than £200 in annual Vehicle Tax.
+
+
+Once you have selected the rows of data with these properties, then you must *use your studentID* to select a random sample of 2000 rows of the data to perform the rest of your analysis with.
+
+You should remove any redundant variables (where only one value remains in that variable).
+
+This subset of the data is what you should use for the rest of this assessment. 
+
+```{r dataprep}
+
+# we filter the data by specifying our required argument
+
+filtered_data <- Jan_data %>%
+  filter(mileage<60000)%>%
+  filter(transmission == "Manual")%>%
+  filter(fuelType == "Petrol")%>%
+  filter(tax<200)
+  
+head(filtered_data)
+
+```
+
+## Set seed with my studentID
+
+```{r set seed}
+#using student id as set.seed, we select 2000 random samples from our df
+set.seed(21044874)
+rand_filtered_data <- filtered_data[sample(nrow(filtered_data), 2000, replace = FALSE, prob = NULL),]
+ 
+head(rand_filtered_data)
+```
+
+
+```{r getting rid of redundant variables}
+#first we use the duplicated() function from the dyplr library to check if we have any redundant record
+
+#duplicated(rand_filtered_data)
+
+#then we get rid of the duplicated variables
+rand_filtered_data_new <- rand_filtered_data[!duplicated(rand_filtered_data), ]
+```
+
+a. Explain what data preparation is required in order for the data in Jan_2022_Exam_Data.csv to be suitable for this analysis.
+
+**(4 marks)**
+
+### Answer:
+
+1. Data Collection for the purpose we are trying to solve: 
+
+In this case, since we are only interested in data with the following properties, the mileage less than 60000, Manual transmission, Petrol engine (fuelType) and Costing less than £200 in annual Vehicle Tax.We have to filter and store them in a new data frame. 
+
+2. Metedata: 
+
+Here we read and understand better the data, what it contains, the kind of problem we are trying to solve and what we'll be needing to solve this problem.
+
+3. Data Cleansing:
+
+Here we get rid of null values, replacing them with NA. 
+
+4 Understand the structure of the data.
+
+b. Implement the required data preparation in the code chunk below:
+
+**(7 marks)**
+
+### Answer:
+
+All, of the code chunks above my explanation are part of data preparation, which involves understanding the data and selecting the variables we'll be needing to solve our problem.. Here we selected certain columns, we filtered them and then selected a random sample from our filtered data which we'll be needing to proceed to our EDA. 
+
+```{r data prep}
+# in addition to the data preparation we have done above we can do some more to make sure our data is ready for EDA
+
+
+#function to replace missing values with NA
+
+replace_with_na <- function(column, na_value){
+  column[column %in% na_value] <- NA
+  return((column))
+}
+
+# now let's call the function on our data for each quantitative variable column
+
+rand_filtered_data_new$year <- replace_with_na(rand_filtered_data_new$year, 0)
+
+rand_filtered_data_new$price <- replace_with_na(rand_filtered_data_new$price, 0)
+
+rand_filtered_data_new$mileage <- replace_with_na(rand_filtered_data_new$mileage, 0)
+
+rand_filtered_data_new$transmission <- replace_with_na(rand_filtered_data_new$transmission, 0)
+
+rand_filtered_data_new$fuelType <- replace_with_na(rand_filtered_data_new$fuelType, 0)
+
+rand_filtered_data_new$tax <- replace_with_na(rand_filtered_data_new$tax, 0)
+
+rand_filtered_data_new$mpg <- replace_with_na(rand_filtered_data_new$mpg, 0)
+
+rand_filtered_data_new$engineSize <- replace_with_na(rand_filtered_data_new$engineSize, 0)
+
+#let's see if changes were made by printing our new data frame
+
+head(rand_filtered_data_new)
+
+```
+
+
+
+
+# Question 2: Exploratory Data Analysis (22 marks)
+
+## Descriptive Statistics
+
+a.	What descriptive statistics would be appropriate for this dataset?  Explain why these are useful in this context.
+
+**(2 marks)**
+
+### Answer: 
+
+1. We can start by getting a quick summary of the variables, mean, min, max and quantile as well as count of NA values.
+
+2. We can also look at the range of distribution of the variables. 
+
+3. Finally we can use the describe function to get the group statistics which includes the sd. 
+
+
+
+b. Produce those descriptive statistics in the code chunk below:
+
+**(4 marks)**
+
+### Answer:
+
+```{r DescriptiveStats}
+# summary
+summary(rand_filtered_data_new)
+
+#str
+
+str(rand_filtered_data_new)
+
+#describe
+
+describe(rand_filtered_data_new)
+
+#standard deviation of tax and engineSize
+sd(rand_filtered_data_new$tax, na.rm = TRUE) #solves issues with NA'S by ignoring in calculation
+
+sd(rand_filtered_data_new$engineSize, na.rm = TRUE) #solves issues with NA'S by ignoring in calculation
+
+```
+
+c. What have those descriptive statistics told you – and how does this inform the analysis that you would undertake on this data or any additional data cleaning requirements?
+
+**(4 marks)**
+
+### Answer:
+1. Our summary statistics shows us our mean,min,max value, 1st and 3rd quantile and also the number of NA's. This can be really helpful to know the range of values of our variables. 
+- The summary of the price tells us that the maximum price of a used car in our dataset is 48000 and the minimum price is 2995, with a mean of 12949. 
+- Because we filtered our mileage to be < 6000, we are not expecting to get any variable with a higher mileage than that, if not we might have to go back to our data to fix this issue. 
+- Also for our qualitative variables fuelType and transmission,brand and model we should be expecting characters for our class and also no statistical calculations.
+- However, our tax has 183 NA's and engineSize has 10 NA's, which means we might have to carry out further statistical calculations on it, as our sd might be wrong if we use the describe function. 
+
+2. The str function helps us view the internal structure of our data.
+
+3. The describe function gives us the number of observations, our mean and sd.
+
+4. Confirming the sd of tax and engineSize. As we can see our sd from the single sd is the same as that from the describe function so we are in the clear. 
+
+From our observation, we can say there's a slightly even distribution in the price and mileage. But then mpg proves to me evenly distributed with a min value of 20.90, a max value of 70.60 and a mean almost in between this two values at 56.50. Now We can go ahead and perform some exploratory graphs and gain more insight. 
+
+
+## Exploratory Graphs
+
+d. What exploratory graphs would be appropriate for this dataset? Explain why these are useful in this context.
+
+**(2 marks)**
+
+### Answer:
+
+1. A histogram will be appropriate to view the distribution of our quantitative variables.
+
+2. A boxplot will also come in handly to see if the mean is evenly distributed. 
+
+
+e. Now produce those exploratory graphs in the code chunk below:
+
+**(4 marks)**
+
+### Answer:
+
+```{r ExploratoryGraphs}
+#Histogram for Brand against the price
+ggplot(rand_filtered_data_new,aes(x=price,fill=brand))+
+  geom_histogram(alpha=0.6, position = 'identity',bins=20) +
+  scale_fill_brewer(palette="Dark2")+theme_bw() + facet_grid(rows = vars(brand))
+```
+
+```{r}
+#Histogram for Year
+rand_filtered_data_new %>%
+  ggplot(aes(x=year)) + 
+  geom_histogram() + 
+  labs(title = "Histogram for Year") + xlab("Year") + ylab("Count") + theme_bw()
+
+```
+```{r}
+#Histogram for Brand
+rand_filtered_data_new %>%
+  ggplot(aes(x=brand)) + 
+  geom_bar() + 
+  labs(title = "Histogram for Brand") + xlab("Brand") + ylab("Count") + theme_bw()
+
+```
+
+```{r}
+#Histogram for Model
+rand_filtered_data_new %>%
+  ggplot(aes(x=model, fill=model)) + 
+  geom_bar(bin=.5) + 
+  labs(title = "Histogram for Model") + xlab("Model") + ylab("Count") + theme_bw()
+
+
+```
+
+```{r}
+#Histogram for Price
+rand_filtered_data_new %>%
+  ggplot(aes(x=price)) + 
+  geom_histogram() + 
+  labs(title = "Histogram for Price (£)") + xlab("Price(£)") + ylab("Count") + theme_bw()
+```
+
+```{r}
+#Histogram for Mileage
+rand_filtered_data_new %>%
+  ggplot(aes(x=mileage)) + 
+  geom_histogram() + 
+  labs(title = "Histogram for Mileage") + xlab("Mileage") + ylab("Count") + theme_bw()
+```
+
+```{r}
+#Histogram for Tax
+rand_filtered_data_new %>%
+  ggplot(aes(x=tax)) + 
+  geom_histogram() + 
+  labs(title = "Histogram for Tax") + xlab("Tax") + ylab("Count") + theme_bw()
+```
+
+```{r}
+#Histogram for mpg
+rand_filtered_data_new %>%
+  ggplot(aes(x=mpg)) + 
+  geom_histogram() + 
+  labs(title = "Histogram for mpg") + xlab("mpg") + ylab("Count") + theme_bw()
+```
+
+
+```{r boxplot for quantitative variables against the dependent variable}
+rand_filtered_data_new %>%
+  ggplot(aes(x=year, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "Year VS Price") + 
+  xlab("Year") + 
+  ylab("£") + 
+  theme_bw()
+
+rand_filtered_data_new %>%
+  ggplot(aes(x=mileage, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "Mileage VS Price") + 
+  xlab("Mileage") + 
+  ylab("£") + 
+  theme_bw()
+
+rand_filtered_data_new %>%
+  ggplot(aes(x=tax, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "Tax VS Price") + 
+  xlab("Tax") + 
+  ylab("£") + 
+  theme_bw()
+
+rand_filtered_data_new %>%
+  ggplot(aes(x=mpg, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "mpg VS Price") + 
+  xlab("mpg") + 
+  ylab("£") + 
+  theme_bw()
+
+rand_filtered_data_new %>%
+  ggplot(aes(x=engineSize, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "Engine Size VS Price") + 
+  xlab("Engine Size") + 
+  ylab("£") + 
+  theme_bw()
+
+rand_filtered_data_new %>%
+  ggplot(aes(x=brand, y = price)) + 
+  geom_boxplot() + 
+  labs(title = "Brand VS Price") + 
+  xlab("Brand") + 
+  ylab("£") + 
+  theme_bw()
+
+```
+
+f. Interpret these exploratory graphs.  How do these graphs inform your subsequent analysis?
+
+**(4 marks)**
+
+### Answer:
+Our first histogram Brand against the price shows us a lot of things about the brand of cars and how they are priced. Mercedes, have more expensive cars, resulting in less purchase of their used cars, same goes for Audi and BMW in between. But Ford has more purchases compared to the other 3 brands because the pricing of the car is fair compared to them. 
+
+Year is distributed to the right, which shows there is a demand for latest cars, this is also the same for mpg. 
+
+For our price, between 0 and 30000 the demand for moderately priced cars is high. 
+
+For mileage, it shows that more people bought cars with lower mileage as there is generally less wear and tear with lower mileage cars.
+
+We can see that price, year and mpg are slightly correlated, as one increases the other reduces, which could mean a possible correlation. And as for the tax histogram.
+
+Also from our box plot it is evident that our mean is evenly distributed. 
+
+
+## Correlations
+
+g. What linear correlations are present within this data?
+
+**(2 marks)**
+
+### Answer:
+
+```{r linearcor}
+#scatter plot checking for linear correlation between Year and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=rand_filtered_data_new$year, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between mileage and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=mileage, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between price and tax
+ggplot(data=rand_filtered_data_new,
+              aes(x=tax, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between mpg and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=rand_filtered_data_new$mpg, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between engineSize and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=engineSize, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between Model and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=model, y=price)) +geom_point()+geom_smooth(method="lm")
+
+#scatter plot checking for linear correlation between Brand and price
+ggplot(data=rand_filtered_data_new,
+              aes(x=brand, y=price)) +geom_point()+geom_smooth(method="lm")
+
+```
+From our scatter plot there is a negative linear relationship between mileage and mpg to price.Also there is a positive relationship between year and price. And also our qualitative variables don't show any patterns of course. 
+
+```{r}
+
+# let's further analyse which of the explanatory variables has a correlation with y using cor()
+cor(rand_filtered_data_new$mpg, rand_filtered_data_new$price)
+
+cor(rand_filtered_data_new$mileage, rand_filtered_data_new$price)
+
+cor(rand_filtered_data_new$year, rand_filtered_data_new$price)
+
+cor(rand_filtered_data_new$tax, rand_filtered_data_new$price)
+
+cor(rand_filtered_data_new$engineSize, rand_filtered_data_new$price)
+
+
+```
+Our cor() shows that mileage, mpg and year have a correlation with y.
+
+# Question 3: Bivariate relationship (14 marks)
+
+a. Which of the potential explanatory variables has the strongest linear relationship with the dependent variable?
+
+**(1 mark)**
+
+### Answer:
+
+```{r}
+# let's use cor.test() to validate our correlation
+cor.test(rand_filtered_data_new$mpg, rand_filtered_data_new$price)
+
+cor.test(rand_filtered_data_new$mileage, rand_filtered_data_new$price)
+
+cor.test(rand_filtered_data_new$year, rand_filtered_data_new$price)
+```
+From our cor.test(), the year is the explanatory variable with the strongest relationship to our dependent variable(price). It shows a positive relationship and has a strong confidence interval compared to the other variables. 
+
+
+b. Create a linear model to model this relationship.
+
+**(2 marks)**
+
+### Answer:
+
+
+```{r model1}
+#linear model
+model1 <- lm(rand_filtered_data_new$price ~ rand_filtered_data_new$year, data = rand_filtered_data_new)
+summary(model1)
+
+```
+
+c. Explain and interpret the model:
+
+**(3 marks)**
+
+### Answer:
+
+From our model our R-squared shows 39% variation within our dependent variable, which shows that the year a car was produced explains some degree of variation in the price of used cars. 
+
+
+
+d. Comment on the performance of this model, including comments on overall model fit and the validity of model assumptions. Include any additional code required for you to make these comments in the code chunk below.
+
+**(4 marks)**
+
+### Answer:
+
+```{r model1performance}
+check_model(model1)
+
+```
+From our model fit, the linearity assumption is met with the residuals evenly distributed following the normal curves, all also falling along the line. Are influential observations points are inside the contour lines. With this we can say our assumptions are met, but we can further prove this.     
+
+## Bootstrap
+
+e. Use bootstrapping on this model to obtain a 95% confidence interval of the estimate of the slope parameter.
+
+**(4 marks)**
+
+### Answer:
+
+```{r bootstrap}
+# Set up bootstrap
+Nbootstrap<- 1000 # 1000 takes half a minute
+coeff_tax <-rep(NA,Nbootstrap)
+
+# Perform bootstrap
+set.seed(21044874)
+for(i in seq_len(Nbootstrap)){
+  usevalues<-sample(seq_along(rand_filtered_data_new$tax),size=length(rand_filtered_data_new$tax),replace=TRUE)
+  
+  bootstrap.sample<- rand_filtered_data_new[usevalues,]
+  model_full <- lm(price ~ mileage + mpg + tax + engineSize + year, data=bootstrap.sample)
+  model_boot <- stepAIC(model_full, trace=FALSE)
+  coeff_tax[i] <- model_boot$coef["tax"]
+}
+
+# Where the coefficient is NA it means the tax variable wasn't selected
+# Set NA's to 0
+mean(is.na(coeff_tax))
+coeff_tax[is.na(coeff_tax)] <- 0
+mean(coeff_tax==0)
+```
+
+```{r}
+# Histogram
+Bootstrap <- data.frame(Coefficient=coeff_tax)
+ggplot(Bootstrap, aes(x=Coefficient)) +
+geom_histogram(aes(y = ..density..),binwidth = .5)+
+  geom_density()+
+ggtitle("Bootstrapped Coefficients")+
+theme_bw()
+
+# 95% bootstrap confidence interval
+quantile(coeff_tax,c(.025,0.975))
+
+
+```
+
+
+
+# Question 4: Multivariable relationship (10 marks)
+
+Create a model with all of the appropriate remaining explanatory variables included:
+
+```{r model2}
+model2 <- lm(price ~ mileage + mpg + tax + engineSize + year, data = rand_filtered_data_new)
+summary(model2)
+
+```
+
+a. Explain and interpret the model:
+
+**(4 marks)**
+
+### Answer:
+Compared to our model created with our bivariate relationship. This model produces an R-squared of 69%, showing a higher variation within our dependent variable. 
+
+b. Comment on the performance of this model, including comments on overall model fit and the validity of model assumptions. Include any additional code required for you to make these comments in the code chunk below.
+
+**(4 marks)**
+
+### Answer:
+
+
+```{r model2performance}
+
+check_model(model2)
+
+```
+
+c. What general concerns do you have regarding this model?
+
+**(2 marks)**
+
+### Answer: 
+
+Our linearity and homogeneity is scattered and does not follow the line which could mean overfitting. So it's advisible to drop some of the independent variables and work with the one with the strongest correlation to the dependent variable. 
+
+
+# Question 5: Model simplification (8 marks)
+
+
+a.	What approaches for model simplification would you consider implementing and why?
+
+**(4 marks)**
+
+### Answer:
+- We can use an appropriate variable selection method like AIC/BIC or considering the size of coefficients.
+
+- We can split our data into training and test data for more validation. 
+
+- Regularization methods can also be used which involves, Lasso and Ridge regression. 
+b.	What are the potential advantages of simplifying a model?
+
+**(2 marks)**
+
+### Answer:
+
+Model simplification helps us understand the main data without altering it, thereby making closely accurate predictions without altering our data. 
+
+
+c.	 What are the potential disadvantages of simplifying a model?
+
+**(2 marks)**
+
+### Answer:
+
+- Over fitting 
+- Under fitting
+
+# Question 6: Reporting (35 marks)
+
+A client is looking to purchase a used Skoda Superb (registration year either 2018 or 2019, manual transmission, petrol engine) and wants to understand what factors influence the expected price of a used car, (and how they influence the price). 
+
+Write a short report of 300-500 words for the client. 
+
+Furthermore, include an explanation as to which model you would recommend, and why you have selected that model. 
+
+Comment on any suggestions for alterations to the model that would be appropriate to consider. 
+
+Highlight what may or may not be directly transferable from the scenario analysed in Questions 1 to 5. 
+
+
+### Answer:
+
+## Report for a Client
+
+In my recent analysis of the factors that could affect the estimated price of a used petrol car, I found out that miles per gallon, mileage and year are considerably high factors that affect the price of a car. 
+
+
+The price of a car increases as the year of production of the car increases. This is common knowledge, especially when it comes to a used car. A car made in 2010 must have been used longer than a car made in 2018, meaning that the car made in 2018 is new and should be in good shape compared to a car made in an earlier year. Some parts of the older car could have been changed over the course of the year, which could mean you are getting a less durable car compared to the newer ones. Putting this into consideration, the price of newer cars would cost more than an older one because it is “more durable”, has been used for a shorter time and in good shape. 
+
+
+Another thing to consider is the mileage. This is a significant factor you should consider. From my analysis, people bought cars with lower mileage, this is because it means the car has been driven fewer miles on average compared to how old the car is. This could also mean that cars with lower mileage would cost more as they are more efficient and newer compared to cars with higher mileage. 
+
+
+And then the last thing to consider is the miles per gallon. From my analysis, more people bought cars with higher miles per gallon(mpg). A high mpg means the car consumes less fuel, and this could be a good thing as it reduces the cost of maintaining the car. My analysis of manual transmission cars showed that cars with higher mpg are cheaper than those with lower mpg, and it could be an advantage as you can buy a car with a high mpg at a cheaper rate. 
+
+
+Furthermore, I would suggest a Ford Fiesta, as my recently conducted analysis shows that they are cheaper, and more people bought them compared to the other brand of cars that I analysed. Also, you would want to consider the year of the model as well, as it means you would get a more durable car and 2018 or 2019 would be fine. Another thing to consider when selecting this model is mpg, as this would influence the cost of maintenance of the car. And finally a very important thing to consider the mileage because for used cars, the condition of the car is measured by the mileage and we would be considering a car with a low mileage average compared to the year of production here. 
+ 
+
+
+
+
+
+# Session Information
+
+Do not edit this part. Make sure that you compile your document so that the information about your session (including software / package versions) is included in your submission.
+
+```{r}
+sessionInfo()
+```
